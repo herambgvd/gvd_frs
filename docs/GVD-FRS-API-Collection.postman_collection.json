@@ -1,0 +1,860 @@
+{
+	"info": {
+		"_postman_id": "gvd-frs-api-collection",
+		"name": "GVD-FRS API Collection",
+		"description": "Complete API collection for GVD-FRS (Global Vulnerability Database - Facial Recognition System) with license key authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "gvd-frs"
+	},
+	"item": [
+		{
+			"name": "Health & System",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/health/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"health",
+								""
+							]
+						},
+						"description": "Check the health status of the application and database connectivity. No authentication required."
+					},
+					"response": []
+				},
+				{
+					"name": "Demo Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/demo/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"demo",
+								""
+							]
+						},
+						"description": "Get demo information about the application features and capabilities."
+					},
+					"response": []
+				}
+			],
+			"description": "System health and demo endpoints that don't require authentication."
+		},
+		{
+			"name": "License Management",
+			"item": [
+				{
+					"name": "Get My License Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{license_key}}",
+								"description": "License key for authentication"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/my-info",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"my-info"
+							]
+						},
+						"description": "Get information about the current license being used. Requires any valid license key."
+					},
+					"response": []
+				},
+				{
+					"name": "Create License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_name\": \"New Client Company\",\n  \"client_id\": \"client-new-001\",\n  \"permissions\": [\"read\", \"write\"],\n  \"is_active\": true,\n  \"expires_in_days\": 365,\n  \"usage_limit\": 5000,\n  \"tenant_id\": \"tenant-new-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								""
+							]
+						},
+						"description": "Create a new license. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Licenses",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/?skip=0&limit=100&is_active=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								""
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0",
+									"description": "Number of records to skip"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Maximum number of records to return"
+								},
+								{
+									"key": "is_active",
+									"value": "true",
+									"description": "Filter by active status"
+								},
+								{
+									"key": "tenant_id",
+									"value": "",
+									"description": "Filter by tenant ID",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all licenses with pagination and filtering. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get License by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/{{license_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"{{license_id}}"
+							]
+						},
+						"description": "Get a specific license by ID. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Update License",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_name\": \"Updated Client Name\",\n  \"permissions\": [\"read\", \"write\", \"admin\"],\n  \"is_active\": true,\n  \"usage_limit\": 10000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/{{license_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"{{license_id}}"
+							]
+						},
+						"description": "Update license information. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete License",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/{{license_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"{{license_id}}"
+							]
+						},
+						"description": "Delete a license. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Validate License Key",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{license_key}}",
+								"description": "Any valid license key with read permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/validate?license_key=gvd-demo-key-12345",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"validate"
+							],
+							"query": [
+								{
+									"key": "license_key",
+									"value": "gvd-demo-key-12345",
+									"description": "License key to validate"
+								}
+							]
+						},
+						"description": "Validate a license key without incrementing usage. Requires read permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/{{license_id}}/revoke",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"{{license_id}}",
+								"revoke"
+							]
+						},
+						"description": "Revoke (deactivate) a license. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Activate License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/{{license_id}}/activate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"{{license_id}}",
+								"activate"
+							]
+						},
+						"description": "Activate a license. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Reset License Usage",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/{{license_id}}/reset-usage",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"{{license_id}}",
+								"reset-usage"
+							]
+						},
+						"description": "Reset usage counter for a license. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get License Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{license_key}}",
+								"description": "License key with read permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/licenses/stats/summary",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"licenses",
+								"stats",
+								"summary"
+							]
+						},
+						"description": "Get license statistics. Requires read permission."
+					},
+					"response": []
+				}
+			],
+			"description": "License management endpoints for creating, updating, and managing API licenses."
+		},
+		{
+			"name": "Tenant Management",
+			"item": [
+				{
+					"name": "Create Tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"tenant-new-001\",\n  \"name\": \"New Tenant Organization\",\n  \"description\": \"A new tenant for testing purposes\",\n  \"domain\": \"newtenant.example.com\",\n  \"status\": \"ACTIVE\",\n  \"max_users\": 100,\n  \"contact_email\": \"admin@newtenant.example.com\",\n  \"contact_phone\": \"+1-555-0123\",\n  \"created_by\": \"admin-user\",\n  \"settings\": {\n    \"feature_flags\": {\n      \"advanced_analytics\": true,\n      \"export_data\": false\n    },\n    \"theme\": \"dark\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								""
+							]
+						},
+						"description": "Create a new tenant. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Tenants",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{license_key}}",
+								"description": "License key with read permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/?skip=0&limit=100&status=ACTIVE",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								""
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0",
+									"description": "Number of records to skip"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Maximum number of records to return"
+								},
+								{
+									"key": "status",
+									"value": "ACTIVE",
+									"description": "Filter by status (ACTIVE, INACTIVE, SUSPENDED, PENDING)"
+								}
+							]
+						},
+						"description": "List tenants with pagination and optional status filtering. Requires read permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tenant by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{license_key}}",
+								"description": "License key with read permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}"
+							]
+						},
+						"description": "Get a specific tenant by ID. Requires read permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Tenant",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{write_license_key}}",
+								"description": "License key with write permission"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Tenant Name\",\n  \"description\": \"Updated tenant description\",\n  \"max_users\": 200,\n  \"contact_email\": \"updated@tenant.example.com\",\n  \"settings\": {\n    \"feature_flags\": {\n      \"advanced_analytics\": true,\n      \"export_data\": true\n    },\n    \"theme\": \"light\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}"
+							]
+						},
+						"description": "Update tenant information. Requires write permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tenant",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}"
+							]
+						},
+						"description": "Delete a tenant. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Activate Tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}/activate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}",
+								"activate"
+							]
+						},
+						"description": "Activate a tenant. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}/deactivate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}",
+								"deactivate"
+							]
+						},
+						"description": "Deactivate a tenant. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Suspend Tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{admin_license_key}}",
+								"description": "Admin license key required"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}/suspend",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}",
+								"suspend"
+							]
+						},
+						"description": "Suspend a tenant. Requires admin permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tenant Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{license_key}}",
+								"description": "License key with read permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/stats/summary",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"stats",
+								"summary"
+							]
+						},
+						"description": "Get tenant statistics. Requires read permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Increment User Count",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{write_license_key}}",
+								"description": "License key with write permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}/users/increment",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}",
+								"users",
+								"increment"
+							]
+						},
+						"description": "Increment user count for a tenant. Requires write permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Decrement User Count",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{write_license_key}}",
+								"description": "License key with write permission"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}/users/decrement",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}",
+								"users",
+								"decrement"
+							]
+						},
+						"description": "Decrement user count for a tenant. Requires write permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Tenant management endpoints for multi-tenant architecture support."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Pre-request script to set dynamic variables",
+					"",
+					"// Set timestamp for request tracking",
+					"pm.globals.set('timestamp', new Date().toISOString());",
+					"",
+					"// Log the request being made",
+					"console.log(`Making request to: ${pm.request.url}`);",
+					"",
+					"// Validate license key is set",
+					"const licenseKey = pm.variables.get('license_key');",
+					"if (!licenseKey && pm.request.headers.find(h => h.key === 'X-API-Key')) {",
+					"    console.warn('License key is not set. Some requests may fail.');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script for all requests",
+					"",
+					"// Test that response time is reasonable",
+					"pm.test('Response time is less than 5000ms', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"// Test that content type is JSON for successful responses",
+					"if (pm.response.code >= 200 && pm.response.code < 300) {",
+					"    pm.test('Content-Type is application/json', function () {",
+					"        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+					"    });",
+					"}",
+					"",
+					"// Log response status",
+					"console.log(`Response Status: ${pm.response.status} (${pm.response.code})`);",
+					"",
+					"// Handle authentication errors",
+					"if (pm.response.code === 401) {",
+					"    pm.test('Authentication error handled', function () {",
+					"        const jsonData = pm.response.json();",
+					"        pm.expect(jsonData).to.have.property('detail');",
+					"        console.log('Authentication failed:', jsonData.detail);",
+					"    });",
+					"}",
+					"",
+					"// Handle authorization errors",
+					"if (pm.response.code === 403) {",
+					"    pm.test('Authorization error handled', function () {",
+					"        const jsonData = pm.response.json();",
+					"        pm.expect(jsonData).to.have.property('detail');",
+					"        console.log('Authorization failed:', jsonData.detail);",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string",
+			"description": "Base URL for the GVD-FRS API"
+		},
+		{
+			"key": "license_key",
+			"value": "gvd-demo-key-12345",
+			"type": "string",
+			"description": "Demo license key with read and write permissions"
+		},
+		{
+			"key": "admin_license_key",
+			"value": "gvd-premium-key-67890",
+			"type": "string",
+			"description": "Admin license key with full permissions"
+		},
+		{
+			"key": "write_license_key",
+			"value": "gvd-demo-key-12345",
+			"type": "string",
+			"description": "License key with write permissions"
+		},
+		{
+			"key": "license_id",
+			"value": "1",
+			"type": "string",
+			"description": "Sample license ID for testing"
+		},
+		{
+			"key": "tenant_id",
+			"value": "tenant-demo-001",
+			"type": "string",
+			"description": "Sample tenant ID for testing"
+		}
+	]
+}
+
