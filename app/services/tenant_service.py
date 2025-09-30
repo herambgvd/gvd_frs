@@ -33,9 +33,7 @@ class TenantService:
                 raise ValueError(f"Domain '{tenant_data.domain}' is already taken")
 
         # Convert settings dict to JSON string if provided
-        settings_json = None
-        if tenant_data.settings:
-            settings_json = json.dumps(tenant_data.settings)
+        
 
         tenant = Tenant(
             id=tenant_data.id,
@@ -43,7 +41,7 @@ class TenantService:
             description=tenant_data.description,
             domain=tenant_data.domain,
             status=tenant_data.status,
-            settings=settings_json,
+            settings=json.dumps(tenant_data.settings) if tenant_data.settings else None,
             max_users=tenant_data.max_users,
             contact_email=tenant_data.contact_email,
             contact_phone=tenant_data.contact_phone,
@@ -54,13 +52,25 @@ class TenantService:
         await self.db.commit()
         await self.db.refresh(tenant)
 
+        if tenant.settings and isinstance(tenant.settings, str):
+            tenant.settings = json.loads(tenant.settings)
+
         logger.info(f"Created new tenant: {tenant.id} - {tenant.name}")
         return tenant
 
     async def get_tenant(self, tenant_id: str) -> Optional[Tenant]:
         """Get tenant by ID."""
         result = await self.db.execute(select(Tenant).where(Tenant.id == tenant_id))
-        return result.scalar_one_or_none()
+        tenant = result.scalar_one_or_none()
+
+        if tenant and isinstance(tenant.settings, str):
+            import json
+            try:
+                tenant.settings = json.loads(tenant.settings)
+            except Exception:
+                tenant.settings = None  # fallback if corrupted
+
+        return tenant
 
     async def get_tenant_by_domain(self, domain: str) -> Optional[Tenant]:
         """Get tenant by domain."""
@@ -105,9 +115,15 @@ class TenantService:
 
         for field, value in update_data.items():
             setattr(tenant, field, value)
+        
+        if tenant.settings and isinstance(tenant.settings, dict):
+            tenant.settings = json.dumps(tenant.settings)
 
         await self.db.commit()
         await self.db.refresh(tenant)
+
+        if tenant.settings and isinstance(tenant.settings, str):
+            tenant.settings = json.loads(tenant.settings)
 
         logger.info(f"Updated tenant: {tenant.id}")
         return tenant
@@ -125,12 +141,17 @@ class TenantService:
         return True
 
     async def activate_tenant(self, tenant_id: str) -> Optional[Tenant]:
-        """Activate a tenant."""
-        return await self.update_tenant(tenant_id, TenantUpdate(status=TenantStatus.ACTIVE))
+        tenant = await self.update_tenant(tenant_id, TenantUpdate(status=TenantStatus.ACTIVE))
+        if tenant and isinstance(tenant.settings, str):
+            tenant.settings = json.loads(tenant.settings)
+        return tenant
 
     async def deactivate_tenant(self, tenant_id: str) -> Optional[Tenant]:
-        """Deactivate a tenant."""
-        return await self.update_tenant(tenant_id, TenantUpdate(status=TenantStatus.INACTIVE))
+        tenant = await self.update_tenant(tenant_id, TenantUpdate(status=TenantStatus.INACTIVE))
+        if tenant and isinstance(tenant.settings, str):
+            tenant.settings = json.loads(tenant.settings)
+        return tenant
+
 
     async def suspend_tenant(self, tenant_id: str) -> Optional[Tenant]:
         """Suspend a tenant."""
@@ -190,8 +211,14 @@ class TenantService:
             raise ValueError(f"Tenant {tenant_id} has reached maximum user limit")
 
         tenant.current_users += 1
+        if tenant.settings and isinstance(tenant.settings, dict):
+            tenant.settings = json.dumps(tenant.settings)
+
         await self.db.commit()
         await self.db.refresh(tenant)
+
+        if tenant.settings and isinstance(tenant.settings, str):
+            tenant.settings = json.loads(tenant.settings)
         return tenant
 
     async def decrement_user_count(self, tenant_id: str) -> Optional[Tenant]:
@@ -202,7 +229,13 @@ class TenantService:
 
         if tenant.current_users > 0:
             tenant.current_users -= 1
+            if tenant.settings and isinstance(tenant.settings, dict):
+                tenant.settings = json.dumps(tenant.settings)
+                
             await self.db.commit()
             await self.db.refresh(tenant)
+
+            if tenant.settings and isinstance(tenant.settings, str):
+                tenant.settings = json.loads(tenant.settings)
 
         return tenant

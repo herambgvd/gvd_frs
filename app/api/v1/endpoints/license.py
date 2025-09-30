@@ -269,8 +269,8 @@ async def validate_license_key(
             message="License is inactive"
         )
 
-    from datetime import datetime
-    if license.expires_at and license.expires_at < datetime.utcnow():
+    from datetime import datetime, timezone
+    if license.expires_at and license.expires_at < datetime.now(timezone.utc):
         return LicenseValidationResponse(
             valid=False,
             message="License has expired"

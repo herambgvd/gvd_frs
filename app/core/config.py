@@ -38,19 +38,19 @@ class Settings(BaseSettings):
 
     # Database (Async for application)
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://user:password@localhost:5432/gvd_frs",
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/gvd_frs",
         description="Async database URL for application"
     )
 
     # Database (Sync for Alembic migrations)
     DATABASE_SYNC_URL: str = Field(
-        default="postgresql://user:password@localhost:5432/gvd_frs",
+        default="postgresql://postgres:postgres@localhost:5432/gvd_frs",
         description="Sync database URL for Alembic migrations"
     )
 
     # Test Database (Sync)
     DATABASE_TEST_URL: str = Field(
-        default="postgresql://user:password@localhost:5432/gvd_frs_test",
+        default="postgresql://postgres:postgres@localhost:5432/gvd_frs_test",
         description="Test database URL (sync mode)"
     )
 
