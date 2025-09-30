@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
@@ -64,6 +65,10 @@ def create_application() -> FastAPI:
         openapi_url="/openapi.json",  # OpenAPI schema endpoint
         lifespan=lifespan,
     )
+
+    # Static files (if any) can be mounted here
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 
     # Add CORS middleware
     app.add_middleware(
