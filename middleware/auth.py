@@ -107,19 +107,19 @@ class AuthMiddleware:
                 
                 # Return structured user data
                 return {
-                    'id': user.get('_id') or user.get('id'),
-                    'email': user.get('email'),
-                    'firstName': user.get('firstName'),
-                    'lastName': user.get('lastName'),
-                    'userType': user.get('userType'),
-                    'organizationId': (user.get('organizationId', {}).get('id') 
-                                     if isinstance(user.get('organizationId'), dict) 
-                                     else user.get('organizationId')),
-                    'organization': user.get('organizationId', {}),  # Full organization data
-                    'permissions': permissions,
-                    'roles': user.get('roles', []),
-                    'isActive': user.get('isActive', True)
-                }
+                'user_id': user.get('_id') or user.get('id'),
+                'email': user.get('email'),
+                'first_name': user.get('firstName'),
+                'last_name': user.get('lastName'),
+                'user_type': user.get('userType'),
+                'organization_id': (user.get('organizationId', {}).get('id') 
+                                 if isinstance(user.get('organizationId'), dict) 
+                                 else user.get('organizationId')),
+                'organization': user.get('organizationId', {}),
+                'permissions': permissions,
+                'roles': user.get('roles', []),
+                'is_active': user.get('isActive', True)
+            }  
                     
         except httpx.RequestError as e:
             logger.error(f"GVD_UMS request error: {e}")

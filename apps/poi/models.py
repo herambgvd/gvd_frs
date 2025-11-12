@@ -15,7 +15,7 @@ class POIBase(BaseModel):
     gender: Literal["male", "female", "other"] = Field(..., description="Gender of the person")
     age: int = Field(..., ge=0, le=120, description="Age of the person")
     additional_info: Optional[str] = Field(None, max_length=1000, description="Any additional information about the person")
-    tagged_watchlist_id: Optional[str] = Field(None, description="The watchlist this person is tagged to")
+    tagged_watchlist_id: str = Field(..., description="The watchlist/group ID this person is tagged to (required)")
 
 
 class POICreate(POIBase):
@@ -39,13 +39,12 @@ class POIUpdate(BaseModel):
     age: Optional[int] = Field(None, ge=0, le=120)
     additional_info: Optional[str] = Field(None, max_length=1000)
     tagged_watchlist_id: Optional[str] = None
-    
+
     @validator('full_name')
     def validate_full_name(cls, v):
         if v is not None and not v.strip():
             raise ValueError('Full name cannot be empty')
         return v.strip().title() if v else v
-
 
 class POIInDB(POIBase):
     """Model representing a POI as stored in database"""
@@ -74,7 +73,7 @@ class POIResponse(BaseModel):
     gender: Literal["male", "female", "other"]
     age: int
     additional_info: Optional[str]
-    tagged_watchlist_id: Optional[str]
+    tagged_watchlist_id: str
     organization_id: str
     created_by: str
     updated_by: Optional[str]
@@ -100,7 +99,7 @@ class POIResponse(BaseModel):
             gender=poi_doc["gender"],
             age=poi_doc["age"],
             additional_info=poi_doc.get("additional_info"),
-            tagged_watchlist_id=poi_doc.get("tagged_watchlist_id"),
+            tagged_watchlist_id=poi_doc["tagged_watchlist_id"],
             organization_id=poi_doc["organization_id"],
             created_by=poi_doc["created_by"],
             updated_by=poi_doc.get("updated_by"),
@@ -132,7 +131,7 @@ class POIQuery(BaseModel):
     gender: Optional[Literal["male", "female", "other"]] = Field(None, description="Filter by gender")
     min_age: Optional[int] = Field(None, ge=0, le=120, description="Minimum age filter")
     max_age: Optional[int] = Field(None, ge=0, le=120, description="Maximum age filter")
-    tagged_watchlist_id: Optional[str] = Field(None, description="Filter by tagged watchlist")
+    tagged_watchlist_id: Optional[str] = Field(None, description="Filter by tagged watchlist/group")
     is_active: Optional[bool] = Field(default=True, description="Filter by active status")
     organization_id: Optional[str] = Field(None, description="Filter by organization ID")
     

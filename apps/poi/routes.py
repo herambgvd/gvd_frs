@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile,
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer
 from typing import List, Optional
-
+from datetime import datetime
 from apps.poi.controller import POIController
 from apps.poi.models import (
     POICreate, POIUpdate, POIResponse, POIListResponse, POIQuery,
@@ -20,9 +20,8 @@ router = APIRouter(prefix="/api/poi", tags=["POI Management"])
 security = HTTPBearer()
 
 
-def get_poi_controller(db=Depends(get_database)) -> POIController:
-    """Dependency to get POI controller"""
-    return POIController(db["client"], db["db_name"])
+def get_poi_controller(db=Depends(get_database)):
+    return POIController(db)
 
 
 @router.post("/", response_model=POIResponse, status_code=status.HTTP_201_CREATED)
@@ -38,11 +37,14 @@ async def create_poi(
     - **gender**: Gender (male/female/other) (required)  
     - **age**: Age of the person (0-120) (required)
     - **additional_info**: Additional information about the person (optional)
-    - **tagged_watchlist_id**: ID of watchlist to tag this person to (optional)
+    - **tagged_watchlist_id**: ID of watchlist/group to tag this person to (required)
     - **organization_id**: Organization ID (required)
-    - **created_by**: User ID who created this POI (required)
     """
-    return await controller.create_poi(poi_data, current_user["user_id"])
+    return await controller.create_poi(
+        poi_data, 
+        current_user["user_id"],
+        current_user["organization_id"]
+    )
 
 
 @router.get("/", response_model=POIListResponse)
@@ -67,7 +69,7 @@ async def list_pois(
     - **gender**: Filter by gender (male/female/other)
     - **min_age**: Minimum age filter
     - **max_age**: Maximum age filter  
-    - **tagged_watchlist_id**: Filter by watchlist ID
+    - **tagged_watchlist_id**: Filter by watchlist/group ID
     - **is_active**: Filter by active status (default: true)
     """
     query_params = POIQuery(
@@ -210,11 +212,9 @@ async def delete_person_image(
     
     # Update POI to remove image reference
     update_data = POIUpdate(person_image_path=None)
-    await controller.update_poi(
-        person_id,
-        update_data,
-        current_user["organization_id"],
-        current_user["user_id"]
+    await controller.collection.update_one(
+        {"person_id": person_id},
+        {"$set": {"person_image_path": None, "updated_at": datetime.utcnow()}}
     )
     
     # Delete physical file

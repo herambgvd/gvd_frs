@@ -16,6 +16,9 @@ from config.settings import settings
 from apps.groups.routes import router as groups_router
 from apps.poi.routes import router as poi_router
 
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.openapi.utils import get_openapi
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,6 +57,40 @@ def create_app() -> FastAPI:
     app.include_router(groups_router, prefix="/api")
     app.include_router(poi_router)
 
+    # ===== Swagger Authorization =====
+    oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")  # Adjust to your login endpoint
+
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+
+        openapi_schema["components"]["securitySchemes"] = {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter JWT access token to authorize"
+            }
+        }
+
+        for path in openapi_schema["paths"].values():
+            for method in path.values():
+                # Automatically add BearerAuth for all endpoints
+                method.setdefault("security", [{"BearerAuth": []}])
+
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
+
+    # ===== Basic endpoints =====
     @app.get("/")
     async def root():
         return {
