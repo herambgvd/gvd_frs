@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
+    # MinIO S3 settings (Docker container)
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET_NAME: str = "poi-images"
+    MINIO_SECURE: bool = False
+    MINIO_URL: str = "http://localhost:9000"
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Convert CORS_ORIGINS string to list if it's a string

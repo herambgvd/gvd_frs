@@ -1,0 +1,24 @@
+FROM minio/minio:latest
+
+# Set environment variables
+ENV MINIO_ROOT_USER=minioadmin
+ENV MINIO_ROOT_PASSWORD=minioadmin
+
+# Create data directory
+RUN mkdir -p /minio_data
+
+# Copy initialization script
+COPY init-minio.sh /init-minio.sh
+RUN chmod +x /init-minio.sh
+
+# Expose ports
+# 9000: MinIO API
+# 9001: MinIO Console
+EXPOSE 9000 9001
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=5 \
+    CMD curl -f http://localhost:9000/minio/health/live || exit 1
+
+# Start MinIO with initialization
+ENTRYPOINT ["/init-minio.sh"]

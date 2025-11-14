@@ -4,20 +4,17 @@ Handles all business logic for POI management
 """
 
 import os
-import shutil
 import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, UploadFile, status
-from pymongo import MongoClient
-from motor.motor_asyncio import AsyncIOMotorClient
-import asyncio
 from bson import ObjectId
 
 from apps.poi.models import (
     POICreate, POIUpdate, POIInDB, POIResponse, POIListResponse, 
     POIQuery, POIBulkOperation, POIBulkResponse
 )
+from s3_service.minio_service import minio_service
 
 
 class POIController:
@@ -25,9 +22,6 @@ class POIController:
         self.db = db
         self.collection = db.poi_persons
         self.watchlist_collection = db.groups
-        self.group_collection = db.groups
-        self.upload_dir = "uploads/person_profiles"
-        os.makedirs(self.upload_dir, exist_ok=True)
 
 
     async def create_poi(
@@ -339,16 +333,16 @@ class POIController:
             )
     
     async def upload_person_image(self, person_id: str, organization_id: str, file: UploadFile) -> dict:
-        """Upload person image"""
+        """Upload person image to MinIO S3"""
         try:
-            # Validate file type
+            # ✅ Validate file type
             if not file.content_type.startswith('image/'):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="File must be an image"
                 )
             
-            # Check if POI exists
+            # ✅ Check if POI exists
             poi_doc = await self.collection.find_one({
                 "person_id": person_id,
                 "organization_id": organization_id,
@@ -361,18 +355,26 @@ class POIController:
                     detail="POI not found"
                 )
             
-            # Generate unique filename
-            file_extension = file.filename.split('.')[-1].lower()
-            filename = f"{person_id}_{uuid.uuid4().hex}.{file_extension}"
-            file_path = os.path.join(self.upload_dir, filename)
+            # ✅ Read file content
+            file_content = await file.read()
             
-            # Save file
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+            # ✅ Upload to MinIO
+            upload_result = await minio_service.upload_image(
+                person_id=person_id,
+                file_content=file_content,
+                filename=file.filename
+            )
             
-            # Update POI with image path
+            if not upload_result["success"]:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to upload image to MinIO"
+                )
+            
+            # ✅ Update POI with image URL and object name
             update_data = {
-                "person_image_path": file_path,
+                "person_image_url": upload_result["image_url"],
+                "person_image_object_name": upload_result["object_name"],
                 "updated_at": datetime.utcnow()
             }
             
@@ -383,24 +385,22 @@ class POIController:
             
             return {
                 "person_id": person_id,
-                "image_path": file_path,
-                "image_url": f"/api/poi/{person_id}/image",
-                "message": "Image uploaded successfully"
+                "image_url": upload_result["image_url"],
+                "object_name": upload_result["object_name"],
+                "file_size": upload_result["file_size"],
+                "message": "Image uploaded successfully to MinIO"
             }
             
         except HTTPException:
             raise
         except Exception as e:
-            # Clean up file if error occurred
-            if 'file_path' in locals() and os.path.exists(file_path):
-                os.remove(file_path)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"An error occurred while uploading image: {str(e)}"
             )
     
-    async def get_person_image(self, person_id: str, organization_id: str) -> Tuple[str, str]:
-        """Get person image file path and content type"""
+    async def get_person_image_url(self, person_id: str, organization_id: str) -> str:
+        """Get person image URL from MinIO"""
         try:
             poi_doc = await self.collection.find_one({
                 "person_id": person_id,
@@ -408,38 +408,60 @@ class POIController:
                 "is_active": True
             })
             
-            if not poi_doc or not poi_doc.get("person_image_path"):
+            if not poi_doc or not poi_doc.get("person_image_url"):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Person image not found"
                 )
             
-            file_path = poi_doc["person_image_path"]
-            if not os.path.exists(file_path):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Image file not found on server"
-                )
-            
-            # Determine content type from file extension
-            file_extension = file_path.split('.')[-1].lower()
-            content_type_map = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'gif': 'image/gif',
-                'webp': 'image/webp'
-            }
-            content_type = content_type_map.get(file_extension, 'image/jpeg')
-            
-            return file_path, content_type
+            return poi_doc["person_image_url"]
             
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An error occurred while retrieving image: {str(e)}"
+                detail=f"An error occurred while retrieving image URL: {str(e)}"
+            )
+    
+    async def delete_person_image(self, person_id: str, organization_id: str) -> dict:
+        """Delete person image from MinIO"""
+        try:
+            # Get POI to check if image exists
+            poi_doc = await self.collection.find_one({
+                "person_id": person_id,
+                "organization_id": organization_id,
+                "is_active": True
+            })
+            
+            if not poi_doc or not poi_doc.get("person_image_object_name"):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No image found for this person"
+                )
+            
+            # Delete from MinIO
+            object_name = poi_doc["person_image_object_name"]
+            await minio_service.delete_image(object_name)
+            
+            # Update database to remove image references
+            await self.collection.update_one(
+                {"person_id": person_id},
+                {"$set": {
+                    "person_image_url": None,
+                    "person_image_object_name": None,
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            
+            return {"message": "Person image deleted successfully"}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An error occurred while deleting image: {str(e)}"
             )
     
     async def bulk_operations(self, bulk_op: POIBulkOperation, organization_id: str) -> POIBulkResponse:

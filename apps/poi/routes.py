@@ -174,20 +174,16 @@ async def get_person_image(
     controller: POIController = Depends(get_poi_controller)
 ):
     """
-    Get person image
+    Get person image URL from MinIO
     
     - **person_id**: Unique identifier of the person
     """
-    file_path, content_type = await controller.get_person_image(
+    image_url = await controller.get_person_image_url(
         person_id,
         current_user["organization_id"]
     )
     
-    return FileResponse(
-        path=file_path,
-        media_type=content_type,
-        filename=f"person_{person_id}.jpg"
-    )
+    return {"image_url": image_url}
 
 
 @router.delete("/{person_id}/image")
@@ -197,32 +193,14 @@ async def delete_person_image(
     controller: POIController = Depends(get_poi_controller)
 ):
     """
-    Delete person image
+    Delete person image from MinIO
     
     - **person_id**: Unique identifier of the person
     """
-    # Get POI to check if image exists
-    poi = await controller.get_poi_by_id(person_id, current_user["organization_id"], False)
-    
-    if not poi.person_image_path:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No image found for this person"
-        )
-    
-    # Update POI to remove image reference
-    update_data = POIUpdate(person_image_path=None)
-    await controller.collection.update_one(
-        {"person_id": person_id},
-        {"$set": {"person_image_path": None, "updated_at": datetime.utcnow()}}
+    return await controller.delete_person_image(
+        person_id,
+        current_user["organization_id"]
     )
-    
-    # Delete physical file
-    import os
-    if os.path.exists(poi.person_image_path):
-        os.remove(poi.person_image_path)
-    
-    return {"message": "Person image deleted successfully"}
 
 
 @router.post("/bulk", response_model=POIBulkResponse)

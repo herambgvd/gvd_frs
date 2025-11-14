@@ -53,7 +53,8 @@ class POIInDB(POIBase):
     organization_id: str
     created_by: str
     updated_by: Optional[str] = None
-    person_image_path: Optional[str] = Field(None, description="File path to person's image")
+    person_image_url: Optional[str] = Field(None, description="MinIO S3 URL to person's image")
+    person_image_object_name: Optional[str] = Field(None, description="MinIO object name for person's image")
     created_at: datetime
     updated_at: Optional[datetime] = None
     is_active: bool = Field(default=True)
@@ -77,8 +78,8 @@ class POIResponse(BaseModel):
     organization_id: str
     created_by: str
     updated_by: Optional[str]
-    person_image_path: Optional[str]
-    person_image_url: Optional[str] = None  # Will be populated with actual URL
+    person_image_url: Optional[str] = None  # MinIO S3 URL
+    person_image_object_name: Optional[str] = None  # MinIO object name (for deletion)
     created_at: datetime
     updated_at: Optional[datetime]
     is_active: bool
@@ -89,10 +90,6 @@ class POIResponse(BaseModel):
     @classmethod
     def from_db(cls, poi_doc: dict, base_url: str = None) -> "POIResponse":
         """Convert database document to response model"""
-        person_image_url = None
-        if poi_doc.get("person_image_path") and base_url:
-            person_image_url = f"{base_url}/api/poi/{poi_doc['person_id']}/image"
-            
         return cls(
             person_id=poi_doc["person_id"],
             full_name=poi_doc["full_name"],
@@ -103,8 +100,8 @@ class POIResponse(BaseModel):
             organization_id=poi_doc["organization_id"],
             created_by=poi_doc["created_by"],
             updated_by=poi_doc.get("updated_by"),
-            person_image_path=poi_doc.get("person_image_path"),
-            person_image_url=person_image_url,
+            person_image_url=poi_doc.get("person_image_url"),
+            person_image_object_name=poi_doc.get("person_image_object_name"),
             created_at=poi_doc["created_at"],
             updated_at=poi_doc.get("updated_at"),
             is_active=poi_doc.get("is_active", True),
