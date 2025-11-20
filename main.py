@@ -15,6 +15,8 @@ from config.settings import settings
 # Import routers
 from apps.groups.routes import router as groups_router
 from apps.poi.routes import router as poi_router
+from apps.media_uploads.routes import router as media_router
+
 
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
@@ -56,6 +58,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(groups_router, prefix="/api")
     app.include_router(poi_router)
+    app.include_router(media_router, prefix="/api")
 
     # ===== Swagger Authorization =====
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")  # Adjust to your login endpoint

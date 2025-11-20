@@ -54,23 +54,27 @@ class MinIOService:
     
     async def upload_image(self, person_id: str, file_content: bytes, filename: str) -> dict:
         """
-        Upload image to MinIO bucket
-        
+        Upload image/video to MinIO bucket.
+
         Args:
-            person_id: ID of the person
-            file_content: Binary content of the file
+            person_id: Person unique ID
+            file_content: File bytes
             filename: Original filename
-        
+
         Returns:
-            Dictionary with upload details including image URL
+            dict: Upload result (success, url, object_name, file_size)
         """
         try:
             self._ensure_initialized()
-            
-            # Generate object name
+
+            # Extract extension
             file_extension = filename.split('.')[-1].lower()
-            object_name = f"poi/{person_id}/profile_{datetime.utcnow().timestamp()}.{file_extension}"
-            
+
+            # Object Path in MinIO
+            object_name = (
+                f"{person_id}/media_{datetime.utcnow().timestamp()}.{file_extension}"
+            )
+
             # Upload to MinIO
             file_size = len(file_content)
             self.client.put_object(
@@ -80,14 +84,14 @@ class MinIOService:
                 length=file_size,
                 content_type=self._get_content_type(file_extension)
             )
-            
-            # Generate public URL
-            image_url = f"{minio_settings.minio_url}/{self.bucket_name}/{object_name}"
-            
+
+            # Correct public URL
+            file_url = f"{minio_settings.minio_url}/{self.bucket_name}/{object_name}"
+
             return {
                 "success": True,
+                "url": file_url,                # IMPORTANT: controller expects this
                 "object_name": object_name,
-                "image_url": image_url,
                 "file_size": file_size,
                 "uploaded_at": datetime.utcnow().isoformat()
             }
