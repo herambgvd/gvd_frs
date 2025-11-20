@@ -12,5 +12,5 @@ class MediaUploadResponse(BaseModel):
     file_type: str
     file_url: str
     uploaded_at: datetime
-    uploaded_by: str
+    user_id: str
     organization_id: str
