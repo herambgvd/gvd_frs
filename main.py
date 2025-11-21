@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from config.database import connect_to_mongodb, close_mongodb_connection
 from middleware.error_handler import ErrorHandlerMiddleware
 from config.settings import settings
+from s3_service.rustfs_client import get_s3_client
 
 # Import routers
 from apps.groups.routes import router as groups_router
@@ -20,6 +21,10 @@ from apps.media_uploads.routes import router as media_router
 
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
+
+from s3_service.rustfs_service import RustFSService
+
+rustfs_service = RustFSService()
 
 
 @asynccontextmanager
@@ -120,6 +125,35 @@ def create_app() -> FastAPI:
                 return {"status": "success", "message": "Database connected", "db_name": settings.DATABASE_NAME}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+    
+    @app.on_event("startup")
+    async def startup_event():
+        s3 = get_s3_client()
+
+        # Create main bucket only if not exists
+        try:
+            s3.create_bucket(Bucket=settings.RUSTFS_BUCKET)
+        except Exception:
+            pass
+
+        # Make bucket public
+        public_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": ["s3:GetObject"],
+                "Resource": f"arn:aws:s3:::{settings.RUSTFS_BUCKET}/*"
+            }]
+        }
+
+        import json
+        s3.put_bucket_policy(
+            Bucket=settings.RUSTFS_BUCKET,
+            Policy=json.dumps(public_policy)
+        )
+
+
 
     return app
 

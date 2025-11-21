@@ -1,57 +1,51 @@
 """
-Media Upload Controller (Local File Storage Only)
+Media Upload Controller (RustFS S3 Storage)
 """
-from fastapi import UploadFile, HTTPException, status
-from datetime import datetime
+
 import uuid
-import os
+from fastapi import UploadFile, HTTPException
+from datetime import datetime
 from bson import ObjectId
 
 from apps.media_uploads.utils import MediaUtils
+from s3_service.rustfs_service import RustFSService
+
+rustfs = RustFSService()
 
 
 class MediaUploadController:
+
     def __init__(self, db):
         self.collection = db.media_uploads
-        self.upload_dir = "uploads/media"
-        os.makedirs(self.upload_dir, exist_ok=True)
 
     def serialize(self, doc: dict):
-        """Convert ObjectId → str"""
         doc["_id"] = str(doc["_id"])
         return doc
 
-    # -------------------------------------------------------------
-    # CREATE
-    # -------------------------------------------------------------
+    # ============================================================
+    # 1️⃣ UPLOAD MEDIA (IMAGE / VIDEO) → RustFS
+    # ============================================================
     async def upload_media(self, file: UploadFile, user_id: str, organization_id: str):
 
-        file_content = await file.read()
+        file_bytes = await file.read()
 
-        if not MediaUtils.validate_file(file_content, file.content_type):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid file type. Allowed: JPEG, PNG, MP4, MKV"
-            )
+        if not MediaUtils.validate_file(file_bytes, file.content_type):
+            raise HTTPException(400, "Invalid file type (Allowed: jpg, png, mp4, mkv)")
 
-        filename = MediaUtils.generate_filename(file.filename)
-        file_path = os.path.join(self.upload_dir, filename)
-
-        # Save file locally
-        try:
-            with open(file_path, "wb") as f:
-                f.write(file_content)
-        except Exception as e:
-            raise HTTPException(500, f"Cannot save file: {str(e)}")
-
-        file_url = f"/{self.upload_dir}/{filename}"
+        # 🔥 Using correct RustFS method
+        upload = await rustfs.upload_media_file(
+            file_content=file_bytes,
+            filename=file.filename
+        )
 
         doc = {
             "_id": ObjectId(),
             "file_id": str(uuid.uuid4()),
-            "filename": filename,
+            "filename": file.filename,
             "file_type": file.content_type,
-            "file_url": file_url,
+            "file_url": upload["image_url"],
+            "object_name": upload["object_name"],
+            "file_size": upload["file_size"],
             "uploaded_at": datetime.utcnow(),
             "uploaded_by": user_id,
             "organization_id": organization_id
@@ -60,82 +54,125 @@ class MediaUploadController:
         await self.collection.insert_one(doc)
         return self.serialize(doc)
 
-    # -------------------------------------------------------------
-    # READ (GET SINGLE MEDIA)
-    # -------------------------------------------------------------
+    # ============================================================
+    # 2️⃣ GET MEDIA
+    # ============================================================
     async def get_media(self, file_id: str):
         media = await self.collection.find_one({"file_id": file_id})
         if not media:
             raise HTTPException(404, "Media not found")
         return self.serialize(media)
 
-    # -------------------------------------------------------------
-    # LIST ALL MEDIA (by organization)
-    # -------------------------------------------------------------
+    # ============================================================
+    # 3️⃣ LIST ALL MEDIA (BY ORG)
+    # ============================================================
     async def list_media(self, organization_id: str):
-        media_cursor = self.collection.find({"organization_id": organization_id})
-        media_list = await media_cursor.to_list(length=None)
-        return [self.serialize(m) for m in media_list]
+        cursor = self.collection.find({"organization_id": organization_id})
+        return [self.serialize(m) for m in await cursor.to_list(length=None)]
 
-    # -------------------------------------------------------------
-    # UPDATE (replace file)
-    # -------------------------------------------------------------
+    # ============================================================
+    # 4️⃣ UPDATE MEDIA (DELETE OLD THEN UPLOAD NEW)
+    # ============================================================
     async def update_media(self, file_id: str, new_file: UploadFile):
 
         media = await self.collection.find_one({"file_id": file_id})
         if not media:
             raise HTTPException(404, "Media not found")
 
-        # Delete old file
-        old_path = media["file_url"].lstrip("/")
-        if os.path.exists(old_path):
-            os.remove(old_path)
+        # delete old file
+        if media.get("object_name"):
+            await rustfs.delete_image(media["object_name"])
 
-        # Save new file
-        file_content = await new_file.read()
+        # upload new file
+        file_bytes = await new_file.read()
 
-        if not MediaUtils.validate_file(file_content, new_file.content_type):
+        if not MediaUtils.validate_file(file_bytes, new_file.content_type):
             raise HTTPException(400, "Invalid file type")
 
-        new_filename = MediaUtils.generate_filename(new_file.filename)
-        new_path = os.path.join(self.upload_dir, new_filename)
-
-        with open(new_path, "wb") as f:
-            f.write(file_content)
-
-        new_url = f"/{self.upload_dir}/{new_filename}"
-
-        # Update DB
-        await self.collection.update_one(
-            {"file_id": file_id},
-            {
-                "$set": {
-                    "filename": new_filename,
-                    "file_type": new_file.content_type,
-                    "file_url": new_url,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+        upload = await rustfs.upload_media_file(
+            file_content=file_bytes,
+            filename=new_file.filename
         )
 
-        updated_doc = await self.collection.find_one({"file_id": file_id})
-        return self.serialize(updated_doc)
+        await self.collection.update_one(
+            {"file_id": file_id},
+            {"$set": {
+                "filename": new_file.filename,
+                "file_url": upload["image_url"],
+                "file_type": new_file.content_type,
+                "file_size": upload["file_size"],
+                "object_name": upload["object_name"],
+                "updated_at": datetime.utcnow()
+            }}
+        )
 
-    # -------------------------------------------------------------
-    # DELETE
-    # -------------------------------------------------------------
+        updated = await self.collection.find_one({"file_id": file_id})
+        return self.serialize(updated)
+
+    # ============================================================
+    # 5️⃣ DELETE MEDIA
+    # ============================================================
     async def delete_media(self, file_id: str):
 
         media = await self.collection.find_one({"file_id": file_id})
         if not media:
             raise HTTPException(404, "Media not found")
 
-        # Delete file locally
-        file_path = media["file_url"].lstrip("/")
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # delete from RustFS
+        if media.get("object_name"):
+            await rustfs.delete_image(media["object_name"])
 
-        # Delete DB entry
+        # delete DB
         await self.collection.delete_one({"file_id": file_id})
 
         return {"success": True, "message": "Media deleted successfully"}
+
+    # ============================================================
+    # 6️⃣ PERSON IMAGE UPLOAD → RustFS (POI)
+    # ============================================================
+    async def upload_person_image(self, person_id: str, organization_id: str, file: UploadFile):
+
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(400, "Only image files allowed")
+
+        file_bytes = await file.read()
+
+        upload = await rustfs.upload_poi_file(
+            file_content=file_bytes,
+            filename=file.filename
+        )
+
+        await self.collection.update_one(
+            {"person_id": person_id},
+            {"$set": {
+                "person_image_url": upload["image_url"],
+                "person_image_object_name": upload["object_name"],
+                "updated_at": datetime.utcnow()
+            }},
+            upsert=True
+        )
+
+        return upload
+
+    # ============================================================
+    # 7️⃣ DELETE PERSON IMAGE
+    # ============================================================
+    async def delete_person_image(self, person_id: str):
+
+        poi = await self.collection.find_one({"person_id": person_id})
+
+        if not poi or not poi.get("person_image_object_name"):
+            raise HTTPException(404, "No image found")
+
+        await rustfs.delete_image(poi["person_image_object_name"])
+
+        await self.collection.update_one(
+            {"person_id": person_id},
+            {"$set": {
+                "person_image_url": None,
+                "person_image_object_name": None,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+
+        return {"message": "Person image deleted"}

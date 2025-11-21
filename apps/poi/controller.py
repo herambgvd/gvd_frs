@@ -14,7 +14,10 @@ from apps.poi.models import (
     POICreate, POIUpdate, POIInDB, POIResponse, POIListResponse, 
     POIQuery, POIBulkOperation, POIBulkResponse
 )
-from s3_service.minio_service import minio_service
+from s3_service.rustfs_service import RustFSService
+
+rustfs_service = RustFSService()
+
 
 
 class POIController:
@@ -332,138 +335,126 @@ class POIController:
                 detail=f"An error occurred while listing POIs: {str(e)}"
             )
     
+
     async def upload_person_image(self, person_id: str, organization_id: str, file: UploadFile) -> dict:
-        """Upload person image to MinIO S3"""
         try:
-            # ✅ Validate file type
-            if not file.content_type.startswith('image/'):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="File must be an image"
-                )
-            
-            # ✅ Check if POI exists
+            # Validate file
+            if not file.content_type.startswith("image/"):
+                raise HTTPException(400, "File must be an image")
+
+            # Check POI exists
             poi_doc = await self.collection.find_one({
                 "person_id": person_id,
                 "organization_id": organization_id,
                 "is_active": True
             })
-            
+
             if not poi_doc:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="POI not found"
-                )
-            
-            # ✅ Read file content
+                raise HTTPException(404, "POI not found")
+
+            # Read file
             file_content = await file.read()
-            
-            # ✅ Upload to MinIO
-            upload_result = await minio_service.upload_image(
-                person_id=person_id,
+
+            # Upload to RustFS
+            upload_result = await rustfs_service.upload_poi_file(
                 file_content=file_content,
                 filename=file.filename
             )
-            
-            if not upload_result["success"]:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to upload image to MinIO"
-                )
-            
-            # ✅ Update POI with image URL and object name
+
+            # Save file metadata
             update_data = {
                 "person_image_url": upload_result["image_url"],
                 "person_image_object_name": upload_result["object_name"],
                 "updated_at": datetime.utcnow()
             }
-            
+
             await self.collection.update_one(
-                {"person_id": person_id},
+                {"person_id": person_id, "organization_id": organization_id},
                 {"$set": update_data}
             )
-            
+
             return {
                 "person_id": person_id,
                 "image_url": upload_result["image_url"],
                 "object_name": upload_result["object_name"],
                 "file_size": upload_result["file_size"],
-                "message": "Image uploaded successfully to MinIO"
+                "message": "Image uploaded successfully to RustFS"
             }
-            
+
         except HTTPException:
             raise
+
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An error occurred while uploading image: {str(e)}"
+                500,
+                f"An error occurred while uploading image: {str(e)}"
             )
-    
+
+    # -------------------------------------------------------------
+    # GET PERSON IMAGE URL
+    # -------------------------------------------------------------
     async def get_person_image_url(self, person_id: str, organization_id: str) -> str:
-        """Get person image URL from MinIO"""
         try:
             poi_doc = await self.collection.find_one({
                 "person_id": person_id,
                 "organization_id": organization_id,
                 "is_active": True
             })
-            
+
             if not poi_doc or not poi_doc.get("person_image_url"):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Person image not found"
-                )
-            
+                raise HTTPException(404, "Person image not found")
+
             return poi_doc["person_image_url"]
-            
+
         except HTTPException:
             raise
+
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An error occurred while retrieving image URL: {str(e)}"
+                500,
+                f"An error occurred while retrieving image URL: {str(e)}"
             )
-    
+
+    # -------------------------------------------------------------
+    # DELETE PERSON IMAGE (RustFS)
+    # -------------------------------------------------------------
     async def delete_person_image(self, person_id: str, organization_id: str) -> dict:
-        """Delete person image from MinIO"""
         try:
-            # Get POI to check if image exists
             poi_doc = await self.collection.find_one({
                 "person_id": person_id,
                 "organization_id": organization_id,
                 "is_active": True
             })
-            
+
             if not poi_doc or not poi_doc.get("person_image_object_name"):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="No image found for this person"
-                )
-            
-            # Delete from MinIO
+                raise HTTPException(404, "No image found for this person")
+
             object_name = poi_doc["person_image_object_name"]
-            await minio_service.delete_image(object_name)
-            
-            # Update database to remove image references
+
+            # Delete from RustFS
+            await rustfs_service.delete_image(object_name)
+
+            # Update DB
             await self.collection.update_one(
-                {"person_id": person_id},
+                {"person_id": person_id, "organization_id": organization_id},
                 {"$set": {
                     "person_image_url": None,
                     "person_image_object_name": None,
                     "updated_at": datetime.utcnow()
                 }}
             )
-            
-            return {"message": "Person image deleted successfully"}
-            
+
+            return {"message": "Person image deleted successfully from RustFS"}
+
         except HTTPException:
             raise
+
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An error occurred while deleting image: {str(e)}"
+                500,
+                f"An error occurred while deleting image: {str(e)}"
             )
-    
+
     async def bulk_operations(self, bulk_op: POIBulkOperation, organization_id: str) -> POIBulkResponse:
         """Perform bulk operations on POIs"""
         try:

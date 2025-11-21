@@ -32,13 +32,11 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # MinIO S3 settings (Docker container)
-    MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_ACCESS_KEY: str = "minioadmin"
-    MINIO_SECRET_KEY: str = "minioadmin"
-    MINIO_BUCKET_NAME: str = "media"
-    MINIO_SECURE: bool = False
-    MINIO_URL: str = "http://localhost:9000"
+    # RUSTFS / S3 storage
+    RUSTFS_ENDPOINT: str = "http://localhost:9001"
+    RUSTFS_ACCESS_KEY: str = "rustfsadmin"
+    RUSTFS_SECRET_KEY: str = "rustfsadmin"
+    RUSTFS_BUCKET: str = "media"
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
